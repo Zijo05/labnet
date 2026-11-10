@@ -1,0 +1,12 @@
+# The smallest useful lab: three PCs plugged into one switch.
+#
+#   labnet up examples/single-lan.yaml
+#   labnet shell pc01
+#
+# The PCs ask for an address by DHCP, but nothing on this network answers,
+# so they have none. Give them addresses by hand and make them ping each other.
+name: single
+networks:
+  lan: {}
+nodes:
+  pc: {role: pc, links: [lan], count: 3}

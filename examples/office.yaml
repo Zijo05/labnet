@@ -1,0 +1,32 @@
+# A small office: two LANs behind one router that has an internet uplink.
+#
+#   labnet up examples/office.yaml
+#   labnet shell r1
+#
+#                     internet
+#                        |
+#                      [wan]            uplink: Incus plays the ISP here
+#                        |              (DHCP, DNS and NAT to the real internet)
+#                       r1
+#                     /    \
+#           [lan-office]  [lan-guest]   plain switches, nothing configured
+#             /   |   \         \
+#        srv1  pc01  pc02       pc03
+#
+# Interfaces are numbered in the order of 'links':
+#   r1: eth0 = lan-office, eth1 = lan-guest, eth2 = wan
+#
+# Everything starts unconfigured. Ideas: give r1 addresses on both LANs, get
+# its WAN address by DHCP, NAT the LANs out, run DHCP and DNS on srv1, then
+# stop guests from reaching the office LAN.
+name: office
+networks:
+  lan-office: {}
+  lan-guest: {}
+  wan: {uplink: true}
+nodes:
+  r1:   {role: router, links: [lan-office, lan-guest, wan]}
+  srv1: {role: server, links: [lan-office]}
+  pc01: {role: pc, links: [lan-office]}
+  pc02: {role: pc, links: [lan-office]}
+  pc03: {role: pc, links: [lan-guest]}
