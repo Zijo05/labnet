@@ -1,0 +1,6 @@
+# The code runs inside Linux (WSL), so every text file must keep LF line
+# endings even when the repository is checked out on Windows.
+* text=auto eol=lf
+*.png binary
+*.gif binary
+*.pcap binary
