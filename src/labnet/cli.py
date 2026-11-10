@@ -10,7 +10,7 @@ import argparse
 import subprocess
 import sys
 
-from labnet import __version__, engine, hostcheck, images
+from labnet import __version__, ansible_export, engine, hostcheck, images
 from labnet.errors import LabnetError
 from labnet.topology import ROLES, load_topology
 
@@ -256,9 +256,28 @@ def _run_until_interrupt(argv: list[str], stdout: object = None) -> int:
     try:
         return process.wait()
     except KeyboardInterrupt:
-        process.terminate()
-        process.wait()
+        # Ctrl+C also reached the child, which is already shutting down and
+        # flushing its output. Give it a moment before insisting.
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            process.wait()
         return 0
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    lab = engine.get_lab(args.lab)
+    text = ansible_export.inventory_text(lab)
+    if args.output == "-":
+        print(text, end="")
+        return 0
+    output = args.output or f"inventory-{lab.name}.ini"
+    with open(output, "w", encoding="utf-8") as file:
+        file.write(text)
+    _say(f"Wrote {output} ({len(lab.nodes)} node(s)).")
+    _say(f"Try it:  ansible -i {output} all -m ping")
+    return 0
 
 
 def cmd_images(args: argparse.Namespace) -> int:
@@ -359,6 +378,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_argument("-w", "--file", help="write a pcap file instead of printing packets")
     sub.add_argument("-c", "--count", type=int, help="stop after this many packets")
     sub.add_argument("filter", nargs="*", help="tcpdump filter, e.g. icmp or 'port 53'")
+
+    sub = add("export", cmd_export, "write an Ansible inventory for a lab")
+    sub.add_argument("format", choices=["ansible"])
+    sub.add_argument("lab")
+    sub.add_argument(
+        "-o", "--output", help="file to write (default: inventory-<lab>.ini; '-' prints it)"
+    )
 
     sub = add("images", cmd_images, "build, list or remove the per-role node images")
     sub.add_argument("action", choices=["build", "list", "remove"])

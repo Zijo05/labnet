@@ -7,5 +7,5 @@ dist/
 .pytest_cache/
 .ruff_cache/
 *.pcap
-inventory.ini
+inventory-*.ini
 .claude/

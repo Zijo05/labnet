@@ -601,7 +601,11 @@ def capture_argv(
     """
     require_running(node)
     interface = node.interface_for(network)
-    argv = ["incus", "exec", node.instance, "--", "tcpdump", "-i", interface.name, "-n"]
+    argv = ["incus", "exec", node.instance]
+    if raw:
+        # Binary pcap data must not pass through a terminal, which would alter it.
+        argv.append("--force-noninteractive")
+    argv += ["--", "tcpdump", "-i", interface.name, "-n"]
     argv += ["-U", "-w", "-"] if raw else ["-l"]
     if count:
         argv += ["-c", str(count)]
