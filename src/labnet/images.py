@@ -97,14 +97,22 @@ def _quiet(_message: str) -> None:
     """Default reporter: say nothing."""
 
 
-def image_status(role: str, images: list[dict[str, Any]] | None = None) -> str:
-    """Return ``"ok"``, ``"outdated"`` or ``"missing"`` for a role's image."""
+def find_role_image(role: str, images: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
+    """Return the Incus image record for a role's image, or None if not built."""
     alias = role_image_alias(role)
     for image in images if images is not None else incus.list_images():
         if any(entry.get("name") == alias for entry in image.get("aliases") or []):
-            recipe = (image.get("properties") or {}).get("labnet.recipe")
-            return "ok" if recipe == RECIPE_VERSION else "outdated"
-    return "missing"
+            return image
+    return None
+
+
+def image_status(role: str, images: list[dict[str, Any]] | None = None) -> str:
+    """Return ``"ok"``, ``"outdated"`` or ``"missing"`` for a role's image."""
+    image = find_role_image(role, images)
+    if image is None:
+        return "missing"
+    recipe = (image.get("properties") or {}).get("labnet.recipe")
+    return "ok" if recipe == RECIPE_VERSION else "outdated"
 
 
 def ensure_role_images(roles: list[str], report: Reporter = _quiet) -> None:
@@ -259,12 +267,21 @@ EOF
 # client configuration that the base image ships for eth0.
 rm -f /etc/systemd/network/*.network
 """
+    # Forwarding is set explicitly for every role. A new container inherits the
+    # host's value, and the host forwards (Incus needs that for NAT), so
+    # without this file PCs and servers would quietly act as routers too.
     if role == "router":
         network_setup += """
-# A router's job is to forward packets between its interfaces.
-cat > /etc/sysctl.d/90-labnet-router.conf <<'EOF'
-# Written by labnet: routers forward IPv4 packets.
+cat > /etc/sysctl.d/90-labnet.conf <<'EOF'
+# Written by labnet: a router forwards IPv4 packets between its interfaces.
 net.ipv4.ip_forward = 1
+EOF
+"""
+    else:
+        network_setup += """
+cat > /etc/sysctl.d/90-labnet.conf <<'EOF'
+# Written by labnet: this node is not a router, so it does not forward packets.
+net.ipv4.ip_forward = 0
 EOF
 """
 
