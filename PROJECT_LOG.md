@@ -147,3 +147,56 @@ the host to be online.
 - Reset is "delete and rebuild", not "restore a snapshot". With the `dir`
   storage backend a snapshot is a full copy, so snapshotting every scenario
   at start would cost more than rebuilding on the rare reset.
+
+## Milestone 5: web UI
+
+**Done**
+
+- `labnet web`: FastAPI backend (`web/app.py`) that only calls the engine and
+  scenario modules, plus a plain HTML/CSS/JavaScript page with no build step.
+  Cytoscape.js, xterm.js and marked are vendored at pinned versions.
+- Topology picture (layered: internet at the top, hosts at the bottom) with
+  node state, addresses, unplugged links (red, dashed) and shaped links
+  (orange, with the delay/loss shown).
+- Clicking a device opens a console tab: xterm.js over a WebSocket to a PTY
+  running the same `incus exec` command as `labnet shell`.
+- Controls: start/stop lab and node, snapshot/restore, delete, cable
+  unplug/plug, delay and loss per interface.
+- Scenario panel: list and start scenarios, rendered task text, "Check my
+  work" with per-check results and explanations, hints, reset.
+- Security: binds to 127.0.0.1 by default; every HTTP request and WebSocket
+  is checked against cross-site requests (Origin) and DNS rebinding (Host);
+  `--host` other than local prints a warning and asks for confirmation.
+
+**Verified**
+
+- 16 unit tests for the backend with the engine faked (trust check, JSON
+  shapes, error mapping, static files).
+- 2 integration tests against real nodes: the WebSocket terminal is a root
+  shell with a real PTY of the requested size, closing it leaves no process
+  behind on the node, a cross-site WebSocket is refused, and the HTTP API
+  changes link state, shaping, node state and snapshots.
+- By hand, in a browser on the Windows side against the server in WSL
+  (`http://localhost:8080`, WSL mirrored networking): the topology, a console
+  on r1 with coloured output, unplugging a cable and seeing it in the
+  picture, hints, and the firewall scenario going from "4 of 7" to
+  "Solved: all 7 checks passed" after applying the written solution. The
+  screenshots in `docs/images/` are from that session.
+
+**Tried and failed / surprises**
+
+- The first layout (force-directed "cose") was cramped and overlapped labels.
+  Replaced with Cytoscape's layered "breadthfirst" layout rooted at the
+  uplink, which looks like a normal network diagram.
+- Inline SVG icons without a width and height rendered at a few pixels.
+- The browser kept running a cached `app.js` after it changed. Static files
+  are now served with `Cache-Control: no-cache` (revalidate every time).
+- The page redrew its side panels on every 4-second poll, so a button could
+  be replaced just as it was clicked. Panels now redraw only when their data
+  changes.
+- In a hidden browser pane the page did not paint at all (animation frames
+  are paused for background pages). Not a labnet bug, but it cost some time.
+
+**Not covered by automated tests**
+
+- The JavaScript itself. It was exercised by hand as described above.

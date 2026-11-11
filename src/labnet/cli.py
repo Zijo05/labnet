@@ -365,6 +365,34 @@ def _scenario_reset(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_web(args: argparse.Namespace) -> int:
+    try:
+        from labnet.web.app import serve
+    except ImportError:
+        raise LabnetError(
+            "The web UI needs extra packages that are not installed.",
+            hint="Install them with: pipx install --force 'labnet[web]'  "
+            "(or: pip install 'labnet[web]' inside your virtual environment)",
+        ) from None
+
+    local = args.host in ("127.0.0.1", "localhost", "::1")
+    if not local:
+        _say(_colour("WARNING: the web UI gives root consoles on every lab node.", "31"))
+        _say(f"You are making it reachable from other machines through {args.host}.")
+        _say("It has no login. Anyone who can reach this address controls your labs.")
+        if not _confirm("Start it anyway?", args.yes):
+            return 1
+    shown_host = "localhost" if local else args.host
+    _say(f"labnet web UI: http://{shown_host}:{args.port}")
+    if local:
+        _say(
+            "Reachable from this computer only. On WSL, open that address in your Windows browser."
+        )
+    _say("Stop it with Ctrl+C.")
+    serve(host=args.host, port=args.port)
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     lab = engine.get_lab(args.lab)
     text = ansible_export.inventory_text(lab)
@@ -501,6 +529,16 @@ def build_parser() -> argparse.ArgumentParser:
             action.add_argument("number", nargs="?", type=int, default=1, help="hint number")
         if name == "reset":
             add_yes(action)
+
+    sub = add("web", cmd_web, "start the web UI (topology view, browser consoles, scenarios)")
+    sub.add_argument("--port", type=int, default=8080, help="port to listen on (default: 8080)")
+    sub.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="address to listen on. The default, 127.0.0.1, is this computer only. "
+        "Anything else exposes root consoles to the network.",
+    )
+    add_yes(sub)
 
     sub = add("export", cmd_export, "write an Ansible inventory for a lab")
     sub.add_argument("format", choices=["ansible"])

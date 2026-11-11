@@ -62,3 +62,7 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's documented way to declare a request body is a call in the default.
+extend-immutable-calls = ["fastapi.Body"]

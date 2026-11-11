@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>labnet</title>
+  <link rel="stylesheet" href="/static/vendor/xterm.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>labnet</h1>
+    <label class="lab-picker">Lab
+      <select id="lab-select" title="Choose a lab"></select>
+    </label>
+    <span id="lab-summary"></span>
+    <span class="spacer"></span>
+    <div id="lab-actions">
+      <button id="btn-start" title="Start every node of this lab">Start lab</button>
+      <button id="btn-stop" title="Stop every node; everything stays on disk">Stop lab</button>
+      <button id="btn-snapshot" title="Save the state of every node">Snapshot</button>
+      <button id="btn-restore" title="Return every node to a snapshot">Restore</button>
+      <button id="btn-delete" class="danger" title="Delete this lab">Delete</button>
+    </div>
+  </header>
+
+  <div id="message" hidden></div>
+
+  <main>
+    <section id="graph-pane">
+      <div id="graph"></div>
+      <div id="empty" hidden>
+        <h2>No labs yet</h2>
+        <p>Start a guided scenario from the panel on the right, or build your own lab in a terminal:</p>
+        <pre>labnet up examples/office.yaml</pre>
+      </div>
+      <div id="legend">
+        Click a device to open its console. Drag to rearrange.
+        <span class="key down">unplugged</span>
+        <span class="key shaped">delay / loss</span>
+      </div>
+    </section>
+
+    <aside id="side">
+      <nav id="tabs">
+        <button data-tab="details" class="active">Details</button>
+        <button data-tab="scenario">Scenario</button>
+      </nav>
+      <div id="details" class="tab-body"></div>
+      <div id="scenario" class="tab-body" hidden></div>
+    </aside>
+  </main>
+
+  <section id="terminal-pane" hidden>
+    <div id="terminal-tabs"></div>
+    <div id="terminals"></div>
+  </section>
+
+  <script src="/static/vendor/cytoscape.min.js"></script>
+  <script src="/static/vendor/xterm.js"></script>
+  <script src="/static/vendor/addon-fit.js"></script>
+  <script src="/static/vendor/marked.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
