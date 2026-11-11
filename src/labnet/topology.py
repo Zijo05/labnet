@@ -31,6 +31,9 @@ from labnet.errors import LabnetError
 
 ROLES = ("pc", "router", "server")
 
+# Example topologies shipped inside the package, usable by name: labnet up office
+EXAMPLES_DIR = Path(__file__).parent / "examples"
+
 # Default resource limits per role. PCs are tiny; servers get more because
 # BIND, Kea and nginx together need some headroom.
 ROLE_DEFAULTS: dict[str, dict[str, Any]] = {
@@ -135,17 +138,49 @@ class _UniqueKeyLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)
 
 
+def builtin_examples() -> dict[str, Path]:
+    """The example topologies shipped with labnet, as ``{name: file}``."""
+    return {path.stem: path for path in sorted(EXAMPLES_DIR.glob("*.yaml"))}
+
+
+def example_summary(path: Path) -> str:
+    """The first comment line of an example file, used as its description."""
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#") and line.strip("# "):
+            return line.strip("# ")
+    return ""
+
+
+def find_topology(reference: str | Path) -> Path:
+    """Turn what the user typed into a topology file path.
+
+    ``reference`` is a path to a file, or the name of a built-in example such
+    as ``office``. A file that exists always wins over an example of the same
+    name, so ``labnet up office`` in a folder containing ``office`` (a file)
+    uses that file.
+    """
+    path = Path(reference)
+    if path.exists():
+        return path
+    name = str(reference).removesuffix(".yaml")
+    examples = builtin_examples()
+    if name in examples:
+        return examples[name]
+    raise LabnetError(
+        f"Topology file not found: {path}",
+        hint=f"Give the path of a topology file, or the name of a built-in example: "
+        f"{', '.join(examples)}. 'labnet examples' lists them.",
+    )
+
+
 def load_topology(path: str | Path) -> Topology:
-    """Read and validate the topology file at ``path``."""
-    path = Path(path)
+    """Read and validate a topology file, given by path or built-in example name."""
+    path = find_topology(path)
     source = path.name
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        raise LabnetError(
-            f"Topology file not found: {path}",
-            hint="Check the path. Example files are in the examples/ directory.",
-        ) from None
+        raise LabnetError(f"Topology file not found: {path}") from None
     except OSError as exc:
         raise LabnetError(f"Cannot read {path}: {exc.strerror}") from None
     return parse_topology_text(text, source)

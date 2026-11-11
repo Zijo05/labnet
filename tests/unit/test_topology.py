@@ -5,7 +5,14 @@ from pathlib import Path
 import pytest
 
 from labnet.errors import LabnetError
-from labnet.topology import TopologyError, load_topology, parse_topology_text
+from labnet.topology import (
+    TopologyError,
+    builtin_examples,
+    example_summary,
+    find_topology,
+    load_topology,
+    parse_topology_text,
+)
 
 OFFICE = """
 name: office
@@ -168,12 +175,33 @@ def test_missing_file_gives_a_hint(tmp_path: Path) -> None:
     assert caught.value.hint
 
 
-def test_shipped_examples_are_valid() -> None:
-    examples = Path(__file__).resolve().parents[2] / "examples"
-    files = sorted(examples.glob("*.yaml"))
-    assert files, "no example topologies found"
-    for file in files:
-        assert load_topology(file).nodes
+def test_shipped_examples_are_valid_and_described() -> None:
+    examples = builtin_examples()
+    assert set(examples) == {"office", "single-lan", "vlan"}
+    for name, file in examples.items():
+        assert load_topology(file).nodes, name
+        assert example_summary(file), f"{name} has no description comment"
+        assert f"labnet up {name}" in file.read_text(), f"{name} shows the wrong command"
+
+
+def test_examples_can_be_used_by_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert load_topology("office").name == "office"
+    assert load_topology("office.yaml").name == "office"
+    assert find_topology("vlan") == builtin_examples()["vlan"]
+
+    # A real file always wins over an example of the same name.
+    (tmp_path / "office").write_text(
+        "name: mine\nnetworks: {lan: {}}\nnodes: {pc1: {role: pc, links: [lan]}}\n"
+    )
+    assert load_topology("office").name == "mine"
+
+
+def test_unknown_topology_lists_the_examples(tmp_path: Path) -> None:
+    with pytest.raises(LabnetError) as caught:
+        find_topology(tmp_path / "nope.yaml")
+    assert "not found" in caught.value.message
+    assert "office" in caught.value.hint and "labnet examples" in caught.value.hint
 
 
 VLAN_LAB = """

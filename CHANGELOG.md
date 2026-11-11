@@ -4,6 +4,24 @@ All notable changes to labnet are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- One-line install straight from GitHub:
+  `wget -qO- https://raw.githubusercontent.com/Zijo05/labnet/main/install.sh | bash`.
+  The installer also still works from a clone. `LABNET_REF` picks a branch
+  or tag.
+- The example topologies ship inside the package. `labnet up office` works
+  without a clone, and `labnet examples` lists them or prints one to copy.
+
+### Changed
+
+- Examples moved from `examples/` to `src/labnet/examples/`.
+- The installer installs `python3-venv` when it is missing, stops with a
+  clear message when Incus is not in the package sources (Debian 12 without
+  backports), and runs the final check with the new group right away.
+
 ## [0.1.0] - 2026-11-11
 
 First release.

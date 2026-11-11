@@ -1,6 +1,6 @@
 # A small office: two LANs behind one router that has an internet uplink.
 #
-#   labnet up examples/office.yaml
+#   labnet up office
 #   labnet shell r1
 #
 #                     internet

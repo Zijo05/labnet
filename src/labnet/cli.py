@@ -12,7 +12,7 @@ import sys
 
 from labnet import __version__, ansible_export, engine, hostcheck, images, scenario
 from labnet.errors import LabnetError
-from labnet.topology import ROLES, load_topology
+from labnet.topology import ROLES, builtin_examples, example_summary, load_topology
 
 # --- small output helpers --------------------------------------------------
 
@@ -76,7 +76,7 @@ def cmd_install_check(_args: argparse.Namespace) -> int:
     if failed:
         _say(f"{failed} problem(s) must be fixed before labnet can build labs.")
         return 1
-    _say("This machine is ready. Try: labnet up examples/office.yaml")
+    _say("This machine is ready. Try: labnet up office")
     return 0
 
 
@@ -90,6 +90,26 @@ def cmd_up(args: argparse.Namespace) -> int:
     _say()
     first = lab.nodes[0].node if lab.nodes else "<node>"
     _say(f"Open a console with:  labnet shell {first}")
+    return 0
+
+
+def cmd_examples(args: argparse.Namespace) -> int:
+    examples = builtin_examples()
+    if args.name:
+        if args.name not in examples:
+            raise LabnetError(
+                f"There is no example called '{args.name}'.",
+                hint=f"Examples: {', '.join(examples)}.",
+            )
+        # Printed exactly as stored, so it can be saved and edited:
+        #   labnet examples office > my-lab.yaml
+        print(examples[args.name].read_text(encoding="utf-8"), end="")
+        return 0
+    rows = [[name, example_summary(path)] for name, path in examples.items()]
+    _say(_table(["NAME", "DESCRIPTION"], rows, indent=""))
+    _say()
+    _say("Build one:            labnet up <name>")
+    _say("Copy one to edit it:  labnet examples <name> > my-lab.yaml")
     return 0
 
 
@@ -112,7 +132,7 @@ def cmd_list(args: argparse.Namespace) -> int:
     if args.lab:
         labs = {args.lab: engine.get_lab(args.lab)}
     if not labs:
-        _say("No labs exist. Create one with: labnet up examples/office.yaml")
+        _say("No labs exist. Build the example office lab with: labnet up office")
         return 0
     for index, lab in enumerate(labs.values()):
         if index:
@@ -371,8 +391,7 @@ def cmd_web(args: argparse.Namespace) -> int:
     except ImportError:
         raise LabnetError(
             "The web UI needs extra packages that are not installed.",
-            hint="In the labnet repository run ./install.sh again, or: "
-            "pipx install --force '.[web]'",
+            hint="Run the labnet installer again; it installs the web UI too. See docs/install.md.",
         ) from None
 
     local = args.host in ("127.0.0.1", "localhost", "::1")
@@ -461,13 +480,18 @@ def build_parser() -> argparse.ArgumentParser:
     add("install-check", cmd_install_check, "check that this machine can run labs")
 
     sub = add("up", cmd_up, "build a lab from a topology file and wait until it is ready")
-    sub.add_argument("file", help="topology file, for example examples/office.yaml")
+    sub.add_argument(
+        "file", help="topology file, or the name of a built-in example such as 'office'"
+    )
     sub.add_argument(
         "--timeout",
         type=float,
         default=engine.READY_TIMEOUT,
         help="seconds to wait for nodes to boot (default: %(default)s)",
     )
+
+    sub = add("examples", cmd_examples, "list the built-in example topologies, or print one")
+    sub.add_argument("name", nargs="?", help="print this example (to save and edit it)")
 
     sub = add("down", cmd_down, "delete a lab and everything in it")
     sub.add_argument("lab")

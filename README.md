@@ -16,13 +16,19 @@ find out why.
 
 ## Quick start
 
-On Debian or Ubuntu (on Windows: inside WSL2, see [docs/install.md](docs/install.md)):
+On Debian or Ubuntu (on Windows: inside WSL2, see [docs/install.md](docs/install.md)),
+install with one line. It sets up Incus if needed, asking for your sudo
+password, and then installs labnet:
 
 ```bash
-git clone https://github.com/Zijo05/labnet.git && cd labnet
-./install.sh                         # installs Incus if needed, then labnet
-labnet up examples/office.yaml       # build a lab (the first run takes ~2 minutes)
-labnet web                           # open http://localhost:8080
+wget -qO- https://raw.githubusercontent.com/Zijo05/labnet/main/install.sh | bash
+```
+
+Then, in a new terminal:
+
+```bash
+labnet up office      # build the example office lab (the first run takes ~2 minutes)
+labnet web            # open http://localhost:8080
 ```
 
 Click the router in the picture to get a console on it. Or stay in the

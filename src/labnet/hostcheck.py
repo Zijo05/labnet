@@ -249,8 +249,7 @@ def _check_optional_tools() -> list[CheckResult]:
             CheckResult(
                 INFO,
                 "Web UI dependencies are not installed ('labnet web' will not start)",
-                "In the labnet repository run ./install.sh again, or: "
-                "pipx install --force '.[web]'",
+                "Run the labnet installer again; it installs the web UI too. See docs/install.md.",
             )
         )
     if shutil.which("ansible"):

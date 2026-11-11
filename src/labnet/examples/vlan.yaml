@@ -1,7 +1,7 @@
-# VLANs: one physical switch carrying two separate networks, and a
-# "router on a stick" that routes between them over a single trunk cable.
+# VLANs: two separate networks on one switch, joined by a "router on a stick".
+# One trunk cable carries both VLANs to the router.
 #
-#   labnet up examples/vlan.yaml
+#   labnet up vlan
 #
 #                 r1
 #                 | eth0   trunk: carries VLAN 10 and VLAN 20, tagged

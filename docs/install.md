@@ -74,30 +74,54 @@ web UI inside WSL. With the default NAT mode, WSL normally forwards
 
 ## 2. Install labnet
 
-Inside Linux (the WSL distro, on Windows):
+Inside Linux (the WSL distro, on Windows), run this one line:
 
 ```bash
-sudo apt update && sudo apt install -y git
-git clone https://github.com/Zijo05/labnet.git
-cd labnet
-./install.sh
+wget -qO- https://raw.githubusercontent.com/Zijo05/labnet/main/install.sh | bash
 ```
 
-`install.sh` does five things and skips any that are already done:
+It asks for your sudo password when it needs it. `wget` is used because a
+fresh Debian on WSL has it but not `curl`; with curl the equivalent is
+`curl -fsSL <same address> | bash`.
 
-1. installs Incus and pipx with apt (asks for your sudo password);
+Piping a script from the internet into a shell runs whatever that address
+serves, so read it first if you like: open the same address in a browser.
+
+The installer does five things and skips any that are already done:
+
+1. installs Incus, pipx and python3-venv with apt;
 2. initialises Incus with default settings (`incus admin init --minimal`);
 3. adds your user to the `incus-admin` group, so Incus works without sudo;
 4. installs labnet and its web UI with pipx, into its own virtual
-   environment, and puts the `labnet` command in `~/.local/bin`;
+   environment, and puts the `labnet` command in `~/.local/bin`. It downloads
+   the `main` branch from GitHub as an archive, so `git` is not needed;
 5. runs `labnet install-check`.
 
 Every command it runs with sudo is printed first. It does not touch existing
 Incus containers or networks.
 
-If step 3 added you to the group, log out and in again (on WSL: close the
-terminal, `wsl --shutdown` in PowerShell, reopen), then run
-`labnet install-check` yourself.
+When it finishes, **open a new terminal**: that picks up the new group
+membership and puts `labnet` on your PATH. (On WSL, if Incus still says
+"permission denied" in the new terminal, run `wsl --shutdown` in PowerShell
+and open the distro again.)
+
+To install a specific release instead of the latest code, set `LABNET_REF`:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/Zijo05/labnet/main/install.sh | LABNET_REF=v0.1.0 bash
+```
+
+### From a clone
+
+If you have cloned the repository (for development, or to read the code),
+run the same installer from inside it. It then installs labnet from that
+folder instead of downloading it:
+
+```bash
+git clone https://github.com/Zijo05/labnet.git
+cd labnet
+./install.sh
+```
 
 > What was tested: on the development machine Incus was already installed and
 > initialised, so steps 1 to 3 were skipped there. Steps 4 and 5 were run
@@ -130,7 +154,7 @@ command that fixes it:
 ### First lab
 
 ```bash
-labnet up examples/office.yaml     # first run builds the node images: about 2 minutes
+labnet up office                   # first run builds the node images: about 2 minutes
 labnet web                         # then open http://localhost:8080
 ```
 
@@ -145,10 +169,10 @@ If you would rather not run the script:
 
 ```bash
 sudo apt update
-sudo apt install -y incus pipx
+sudo apt install -y incus pipx python3-venv
 sudo incus admin init --minimal
 sudo usermod -aG incus-admin "$USER"      # then log out and in again
-pipx install '.[web]'                     # from the repository directory
+pipx install 'labnet[web] @ https://github.com/Zijo05/labnet/archive/main.tar.gz'
 pipx ensurepath                           # puts ~/.local/bin on your PATH
 labnet install-check
 ```
@@ -172,7 +196,7 @@ labnet install-check
 ## Updating and removing
 
 ```bash
-git pull && pipx install --force '.[web]'      # update
+wget -qO- https://raw.githubusercontent.com/Zijo05/labnet/main/install.sh | bash   # update
 labnet images build --rebuild                  # if the changelog says the images changed
 ```
 

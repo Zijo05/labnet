@@ -1,6 +1,6 @@
 # The smallest useful lab: three PCs plugged into one switch.
 #
-#   labnet up examples/single-lan.yaml
+#   labnet up single-lan
 #   labnet shell pc01
 #
 # The PCs ask for an address by DHCP, but nothing on this network answers,

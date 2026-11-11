@@ -94,8 +94,9 @@ nodes:
   `ip link add link eth0 name eth0.10 type vlan id 10`.
 
 Devices in different VLANs cannot reach each other through the switch even
-if they use the same IP subnet. `examples/vlan.yaml` is a ready-made
-"router on a stick" lab with instructions in its comments.
+if they use the same IP subnet. The built-in example `vlan`
+(`labnet up vlan`) is a ready-made "router on a stick" lab; read its
+instructions with `labnet examples vlan`.
 
 ### Mistakes are explained
 
@@ -123,13 +124,14 @@ long as only one lab has a node called that. Otherwise write `lab/node`
 Checks that this machine can run labs, and says how to fix what is missing.
 See [install.md](install.md#checking-the-installation).
 
-### `labnet up <file>`
+### `labnet up <file or example>`
 
 Builds the lab described by a topology file and waits until every node has
-finished booting.
+finished booting. Instead of a file you can give the name of a built-in
+example (see `labnet examples`).
 
 ```console
-$ labnet up examples/office.yaml
+$ labnet up office
 Building lab 'office' from office.yaml
   network lan-office: creating switch
   network lan-guest: creating switch
@@ -148,6 +150,18 @@ to `down` the lab and rebuild.
 
 The very first `up` builds the node images, which takes a couple of minutes
 and needs internet access.
+
+### `labnet examples [name]`
+
+Lists the example topologies that come with labnet, or prints one. Printing
+one is the quickest way to start a lab of your own:
+
+```bash
+labnet examples                    # office, single-lan, vlan
+labnet examples office > my-lab.yaml
+nano my-lab.yaml                   # change the name and the nodes
+labnet up my-lab.yaml
+```
 
 ### `labnet list [lab]`
 
