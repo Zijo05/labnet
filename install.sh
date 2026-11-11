@@ -34,8 +34,10 @@ LABNET_REF="${LABNET_REF:-main}"
 say()  { printf '\n==> %s\n' "$*"; }
 fail() { printf '\nError: %s\n' "$*" >&2; exit 1; }
 run_sudo() { printf '    sudo %s\n' "$*"; sudo "$@"; }
-in_group_now() { id -nG | tr ' ' '\n' | grep -qx incus-admin; }
-in_group_file() { id -nG "$USER" | tr ' ' '\n' | grep -qx incus-admin; }
+# No "cmd | grep -q" pipelines in this script: with pipefail, grep -q exits
+# at the first match, the writer gets SIGPIPE, and the pipeline "fails".
+in_group_now() { [[ " $(id -nG) " == *" incus-admin "* ]]; }
+in_group_file() { [[ " $(id -nG "$USER") " == *" incus-admin "* ]]; }
 
 # Print the repository directory if this script is running from a clone.
 local_checkout() {
@@ -69,7 +71,8 @@ install_packages() {
     if [ "${#missing[@]}" -gt 0 ]; then
         say "Installing system packages: ${missing[*]}"
         run_sudo apt-get update
-        if [[ " ${missing[*]} " == *" incus "* ]] && ! apt-cache policy incus | grep -q 'Candidate: [0-9]'; then
+        if [[ " ${missing[*]} " == *" incus "* ]] \
+            && [[ "$(apt-cache policy incus 2>/dev/null)" != *"Candidate: "[0-9]* ]]; then
             fail "Incus is not available from your package sources.
 On Debian 12 it is in bookworm-backports: enable that repository, run
 'sudo apt install -t bookworm-backports incus', then run this installer again."
