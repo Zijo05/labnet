@@ -91,8 +91,15 @@ OSPF lab is exercised as scenario 7.
 `CONFIG_VLAN_8021Q=m`, `CONFIG_OPENVSWITCH=m`). Creating an 802.1Q
 sub-interface inside a container works, and Incus accepts the `vlan` option on
 a bridged NIC of a native Linux bridge. The Open vSwitch user-space tools are
-not installed and are not needed: native bridges are enough. VLAN support
-remains a later milestone; see the end of this file for what was done.
+not installed and are not needed: native bridges are enough.
+
+A second spike (`spikes/03-vlan.sh`) then tested the behaviour. Incus turns
+on VLAN filtering on the bridge as soon as a port has a VLAN setting. Two
+access ports in VLAN 10 reached each other; a port in VLAN 20 was unreachable
+from them **even with all three hosts in one IP subnet**; a trunk port with
+802.1Q sub-interfaces reached both VLANs, and its untagged traffic reached
+neither. That is a VLAN-aware switch, so VLAN support was built (see "VLANs
+are port settings in the topology" below).
 
 ### 7. Attaching a browser terminal to a container
 
@@ -222,6 +229,108 @@ The CLI uses `argparse` from the standard library and one third-party
 package, PyYAML. Validation is hand-written so that error messages can name
 the file, the node and the fix. The web UI's packages (FastAPI, uvicorn) are
 an optional extra. Types are plain dataclasses.
+
+### Forwarding is set explicitly on every node
+
+Found while testing roles: servers and PCs reported
+`net.ipv4.ip_forward = 1`. A new container's network namespace inherits the
+host's value, and the host forwards because Incus needs it for NAT. A PC
+that silently routes is wrong and would spoil exercises, so each image
+writes `/etc/sysctl.d/90-labnet.conf`: 1 on routers, 0 elsewhere.
+
+### Persistent configuration is the documented way
+
+Lab nodes restart more often than real machines: on `stop`/`start`, on
+snapshot restore, and on WSL whenever the distro shuts down. Every reference
+solution therefore uses configuration files (systemd-networkd, sysctl.d,
+`/etc/nftables.conf`, service configs plus `systemctl enable`), and the
+scenario tests restart the lab and re-run the checks to prove it.
+
+Nodes keep the base image's `systemd-networkd` and `systemd-resolved`
+instead of switching to ifupdown and a plain `/etc/resolv.conf`. They are
+what current Debian and Ubuntu use, so what is learned transfers. The cost
+is two gotchas, both documented: file order decides which `.network` file
+wins, and dnsmasq must be told not to claim port 53 on every address.
+
+### Scenario checks are data, and test behaviour
+
+A check is a YAML entry with a node and one of three things to test
+(`address_in`, `ping`, `run` with an expected result). That covers every
+scenario shipped, and a new scenario needs no Python. Checks are written
+against behaviour ("pc1 resolves this name") rather than a file's contents,
+so a learner may solve a task with a different tool than the reference
+solution did.
+
+Rejected alternative: checks as Python functions per scenario. More
+flexible, but teachers and students would need to write Python to add an
+exercise, and each scenario would become code to maintain.
+
+### Reference solutions are executed from the documentation
+
+The solution documents mark runnable code blocks with `node=<name>`. The
+integration tests extract exactly those blocks and run them, so the
+solution a reader sees cannot drift from the solution that was tested.
+
+Rejected alternative: separate solution scripts next to the documents.
+Simpler to run, but two copies of every answer, one of which nobody reads.
+
+### Scenario reset rebuilds instead of restoring a snapshot
+
+`scenario reset` deletes the lab and builds it again. Taking a snapshot at
+every scenario start would make reset slightly faster, but with the `dir`
+storage backend a snapshot is a full copy of each node, paid on every start
+for a reset that rarely happens.
+
+### No state files
+
+labnet stores nothing outside Incus. Labs, their nodes and networks, and
+which scenario a lab belongs to are all read from `user.labnet.*` keys each
+time. There is no database to get out of sync with reality. The price is
+that hints are not remembered: `labnet scenario hint 2` asks for the second
+hint by number.
+
+### Web UI: plain page, same engine, local only
+
+- **No framework and no build step.** One HTML file, one CSS file, one
+  JavaScript file of about 650 lines, and three vendored libraries at pinned
+  versions (Cytoscape.js, xterm.js, marked). The owner can read and change
+  it without a Node.js toolchain.
+- **No logic in the backend.** Each endpoint is one engine call. A test
+  drives the HTTP API and checks the effect on real nodes.
+- **Local only, and checked.** Binding to 127.0.0.1 keeps other machines
+  out, but not other *websites*: a page on any site can ask the browser to
+  connect to `ws://127.0.0.1:8080`. The server therefore checks the `Origin`
+  header (cross-site requests) and the `Host` header (DNS rebinding) on
+  every request and WebSocket. Both attacks are covered by tests.
+
+Rejected alternative: a token in the URL, as Jupyter uses. It also works,
+but adds something to copy around, and the header checks need nothing from
+the user.
+
+- **Layered layout.** A force-directed layout was tried first and produced
+  cramped, overlapping pictures. The layered ("breadthfirst") layout rooted
+  at the internet uplink gives the conventional network-diagram shape.
+
+### VLANs are port settings in the topology
+
+On real equipment a VLAN belongs to the switch port, not to the device
+plugged into it. The topology file follows that: a link may be written
+`{network: sw, vlan: 10}` (access port) or `{network: sw, trunk: [10, 20]}`
+(trunk port), and labnet passes these to Incus as the NIC options `vlan` and
+`vlan.tagged`. Tagging on the device side of a trunk is left to the learner,
+as it would be on a real router.
+
+Limit of this choice: port VLANs are fixed when the lab is built.
+
+### Stretch goals not built
+
+- **Windows VMs as nodes.** Not attempted. `/dev/kvm` exists in this WSL
+  kernel, so Incus VMs may be possible, but each Windows node needs a
+  licensed image, several GB of memory and nested virtualisation, on a
+  machine where all of WSL has 6 GB.
+- **Drag-and-drop topology editor.** Not built. It is the largest stretch
+  item, and writing a five-line YAML file is quick. Labs can be created from
+  the web UI only by starting a scenario.
 
 ### License
 

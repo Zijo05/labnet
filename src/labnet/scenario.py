@@ -453,7 +453,7 @@ def _evaluate_command(check: Check, instance: str) -> tuple[bool, str]:
     if check.output_contains is not None and check.output_contains not in output:
         return False, f"expected to see '{check.output_contains}', got: {shown}"
     if check.output_matches is not None and not re.search(check.output_matches, output, re.S):
-        return False, f"output did not match what was expected: {shown}"
+        return False, f"the expected text is not in the output: {shown}"
     return True, shown
 
 

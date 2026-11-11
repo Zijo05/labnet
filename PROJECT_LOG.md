@@ -200,3 +200,70 @@ the host to be online.
 **Not covered by automated tests**
 
 - The JavaScript itself. It was exercised by hand as described above.
+
+## Milestone 6: polish
+
+**Done**
+
+- `install.sh`: one command from a clone. Installs Incus and pipx if
+  missing, initialises Incus, adds the user to `incus-admin`, installs labnet
+  with pipx, runs `install-check`. Skips whatever is already done.
+- Documentation: `README.md` with screenshots, `docs/install.md`,
+  `docs/user-guide.md`, `docs/architecture.md`, `docs/design-decisions.md`,
+  `docs/scenarios.md`, `docs/troubleshooting.md`, `docs/limitations.md`,
+  eight reference solutions, `CHANGELOG.md`.
+- Release tagged `v0.1.0` (local tag; nothing was pushed or published).
+
+**Verified**
+
+- `install.sh` on Debian 13: Incus, its initialisation and the group
+  membership were already in place, so those steps were skipped; the pipx
+  install and `install-check` ran. The pipx-installed copy (outside the
+  development virtualenv) lists the scenarios and contains the web assets.
+- Ubuntu 26.04 with Python 3.14: all unit tests and the linter pass, and
+  `install-check` reports the missing Incus with the command to install it.
+- Claims in the documentation that had not been exercised were run first:
+  a 20-PC lab (74 s to build, about 34 MiB per idle node, 22 s to delete);
+  a node with a custom Alpine image; SSH between nodes with a key for root,
+  root password login refused, `adduser` available.
+
+**Not verified**
+
+- The apt, `incus admin init` and `usermod` steps of `install.sh` on a blank
+  system (they need an interactive sudo password).
+- Building labs on Ubuntu, on Debian 12, or on native (non-WSL) Linux.
+  Incus was deliberately not installed in the Ubuntu WSL distro: all WSL
+  distros share one network namespace, and a second Incus daemon there could
+  have interfered with the Debian one and with the prototype lab.
+
+**Tried and failed / surprises**
+
+- The installer's hints first told users to `pipx install 'labnet[web]'`,
+  which would look on PyPI, where labnet is not published. They now say to
+  install from the repository.
+- `/usr/bin/time` does not exist on a minimal Debian; timings were taken with
+  the shell's `time`.
+
+## Milestone 7: stretch goals
+
+| Goal | Result |
+|------|--------|
+| VLANs | **Done.** Access and trunk ports as link settings in the topology, shown in `list` and the web UI, with unit tests and an integration test (isolation between VLANs in one IP subnet, then router-on-a-stick over a trunk). `examples/vlan.yaml`. |
+| Windows VMs as nodes | **Not attempted.** Needs a licensed image, several GB of memory per node and nested virtualisation; the whole WSL VM has 6 GB. |
+| Topology editor | **Not built.** Labs are created from YAML or by starting a scenario. |
+
+## What remains / ideas for next steps
+
+- Publish: create the GitHub repository, replace `<repository-url>` in
+  `README.md` and `docs/install.md`, push the `main` branch and the `v0.1.0`
+  tag. Put the owner's full name in `LICENSE`.
+- Run the installer and the integration tests on a clean Ubuntu 24.04 and on
+  native Linux, and update the table in `docs/install.md`.
+- A ninth scenario for VLANs (the lab and test exist; it needs a task, hints
+  and a solution).
+- A GIF of the web UI for the README.
+- Continuous integration for the unit tests and linter (they need no Incus).
+- Automated tests for the web page's JavaScript.
+- A true carrier-loss cable pull (needs a root helper on the host).
+- Ideas beyond that: IPv6 scenarios, a BGP scenario, bandwidth limits on
+  links, the visual topology editor.

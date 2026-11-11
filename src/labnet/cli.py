@@ -371,8 +371,8 @@ def cmd_web(args: argparse.Namespace) -> int:
     except ImportError:
         raise LabnetError(
             "The web UI needs extra packages that are not installed.",
-            hint="Install them with: pipx install --force 'labnet[web]'  "
-            "(or: pip install 'labnet[web]' inside your virtual environment)",
+            hint="In the labnet repository run ./install.sh again, or: "
+            "pipx install --force '.[web]'",
         ) from None
 
     local = args.host in ("127.0.0.1", "localhost", "::1")
