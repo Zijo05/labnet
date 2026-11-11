@@ -165,6 +165,12 @@ def make_plan(topology: Topology, storage_pool: str, scenario: str | None = None
                 "network": bridge_name(lab, link),
                 "name": interface,
             }
+            # Optional VLAN settings of the switch port. Incus applies them
+            # on the bridge, which then behaves like a VLAN-aware switch.
+            if link in node.access_vlan:
+                devices[interface]["vlan"] = str(node.access_vlan[link])
+            elif link in node.trunk_vlans:
+                devices[interface]["vlan.tagged"] = ",".join(map(str, node.trunk_vlans[link]))
 
         plan.instances.append(
             PlannedInstance(

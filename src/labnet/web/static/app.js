@@ -249,7 +249,7 @@ function graphElements(lab) {
     });
     for (const iface of node.interfaces) {
       const down = node.running && !iface.up;
-      const notes = [iface.addresses.join("\n"), down ? "unplugged" : "", iface.shaping].filter(Boolean);
+      const notes = [iface.vlan, iface.addresses.join("\n"), down ? "unplugged" : "", iface.shaping].filter(Boolean);
       elements.push({
         group: "edges",
         data: { id: `e:${node.node}:${iface.name}`, source: "n:" + node.node, target: "net:" + iface.network, iface: iface.name, label: notes.join("\n") },
@@ -422,7 +422,7 @@ function interfaceCard(node, iface, base) {
   const down = node.running && !iface.up;
   return h("div", { class: "iface" },
     h("div", { class: "title" },
-      iface.name, h("span", { class: "muted" }, "→ " + iface.network), h("span", { class: "spacer" }),
+      iface.name, h("span", { class: "muted" }, "→ " + iface.network + (iface.vlan ? ` (${iface.vlan})` : "")), h("span", { class: "spacer" }),
       node.running ? h("span", { class: "badge " + (down ? "down" : "running") }, down ? "unplugged" : "link up") : null,
     ),
     h("div", { class: "mono" }, iface.addresses.join(", ") || "no IPv4 address"),

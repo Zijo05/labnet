@@ -147,7 +147,7 @@ def _print_lab(lab: engine.LabState) -> None:
                     node.role if first else "",
                     state if first else "",
                     interface.name,
-                    interface.network,
+                    interface.network + (f" ({interface.vlan})" if interface.vlan else ""),
                     link,
                     ", ".join(interface.addresses) or "-",
                 ]

@@ -62,6 +62,7 @@ class InterfaceState:
     up: bool = False
     addresses: list[str] = field(default_factory=list)  # IPv4, like 192.168.10.1/24
     shaping: str = ""  # netem settings, like "delay 50ms loss 5%"; filled on request
+    vlan: str = ""  # switch port VLAN setting: "vlan 10", "trunk 10,20" or ""
 
 
 @dataclass
@@ -170,9 +171,19 @@ def _node_state(instance: dict[str, Any], config: dict[str, str]) -> NodeState:
             for addr in live.get("addresses") or []
             if addr.get("family") == "inet" and addr.get("scope") == "global"
         ]
+        device = (instance.get("devices") or {}).get(name) or {}
+        vlan = ""
+        if device.get("vlan"):
+            vlan = f"vlan {device['vlan']}"
+        elif device.get("vlan.tagged"):
+            vlan = f"trunk {device['vlan.tagged']}"
         interfaces.append(
             InterfaceState(
-                name=name, network=network, up=live.get("state") == "up", addresses=addresses
+                name=name,
+                network=network,
+                up=live.get("state") == "up",
+                addresses=addresses,
+                vlan=vlan,
             )
         )
     return NodeState(

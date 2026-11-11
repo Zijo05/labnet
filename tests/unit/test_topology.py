@@ -174,3 +174,42 @@ def test_shipped_examples_are_valid() -> None:
     assert files, "no example topologies found"
     for file in files:
         assert load_topology(file).nodes
+
+
+VLAN_LAB = """
+name: vlan
+networks: {sw: {}, wan: {uplink: true}}
+nodes:
+  r1:  {role: router, links: [{network: sw, trunk: [20, 10, 10]}, wan]}
+  pc1: {role: pc, links: [{network: sw, vlan: 10}]}
+  pc2: {role: pc, links: [sw]}
+"""
+
+
+def test_vlan_settings_on_links() -> None:
+    nodes = parse_topology_text(VLAN_LAB).nodes
+    assert nodes["r1"].links == ("sw", "wan")
+    assert nodes["r1"].trunk_vlans == {"sw": (10, 20)}  # sorted, duplicates removed
+    assert nodes["pc1"].access_vlan == {"sw": 10}
+    assert nodes["pc2"].access_vlan == {} and nodes["pc2"].trunk_vlans == {}
+
+
+def test_vlan_mistakes_are_explained() -> None:
+    text = """
+name: vlan
+networks: {sw: {}, wan: {uplink: true}}
+nodes:
+  a: {role: pc, links: [{network: sw, vlan: 5000}]}
+  b: {role: pc, links: [{network: sw, vlan: 10, trunk: [20]}]}
+  c: {role: pc, links: [{network: sw, trunk: 10}]}
+  d: {role: pc, links: [{network: wan, vlan: 10}]}
+  e: {role: pc, links: [{vlan: 10}]}
+  f: {role: pc, links: [{network: sw, vlans: 10}]}
+"""
+    problems = "\n".join(problems_of(text))
+    assert "node 'a': link to 'sw': vlan '5000' is not valid" in problems
+    assert "node 'b': link to 'sw': use either 'vlan' (access port) or 'trunk'" in problems
+    assert "node 'c': link to 'sw': trunk must be a list" in problems
+    assert "node 'd': link to 'wan': VLANs are for switches" in problems
+    assert "node 'e': a link written as a mapping needs 'network'" in problems
+    assert "node 'f': link: unknown key 'vlans' (did you mean 'vlan'?)" in problems

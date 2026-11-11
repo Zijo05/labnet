@@ -1,0 +1,33 @@
+# VLANs: one physical switch carrying two separate networks, and a
+# "router on a stick" that routes between them over a single trunk cable.
+#
+#   labnet up examples/vlan.yaml
+#
+#                 r1
+#                 | eth0   trunk: carries VLAN 10 and VLAN 20, tagged
+#              [  sw  ]
+#        vlan 10 /  \ vlan 20   access ports: untagged, one VLAN each
+#             pc1    pc2
+#
+# The switch port settings are part of the topology, because they belong to
+# the switch, not to the device plugged in:
+#
+#   {network: sw, vlan: 10}          access port in VLAN 10
+#   {network: sw, trunk: [10, 20]}   trunk port carrying VLANs 10 and 20
+#   sw                               a plain port (untagged, default VLAN 1)
+#
+# Things to try:
+#   1. Give pc1 and pc2 addresses in the SAME subnet. They still cannot ping
+#      each other: the switch keeps VLAN 10 and VLAN 20 apart.
+#   2. On r1, create one sub-interface per VLAN and give each an address:
+#        ip link add link eth0 name eth0.10 type vlan id 10
+#        ip link add link eth0 name eth0.20 type vlan id 20
+#      Put pc1 in 192.168.10.0/24 and pc2 in 192.168.20.0/24, with r1 as
+#      their gateway. Now they reach each other through the router.
+name: vlan
+networks:
+  sw: {}
+nodes:
+  r1:  {role: router, links: [{network: sw, trunk: [10, 20]}]}
+  pc1: {role: pc, links: [{network: sw, vlan: 10}]}
+  pc2: {role: pc, links: [{network: sw, vlan: 20}]}

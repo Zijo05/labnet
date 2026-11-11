@@ -95,3 +95,16 @@ def test_scenario_marker_is_recorded() -> None:
     plan = office_plan(scenario="nat")
     assert all(obj.config[KEY_SCENARIO] == "nat" for obj in [*plan.networks, *plan.instances])
     assert KEY_SCENARIO not in office_plan().instances[0].config
+
+
+def test_vlan_settings_become_nic_options() -> None:
+    topology = parse_topology_text(
+        "name: v\nnetworks: {sw: {}}\nnodes:\n"
+        "  r1: {role: router, links: [{network: sw, trunk: [10, 20]}]}\n"
+        "  pc1: {role: pc, links: [{network: sw, vlan: 10}]}\n"
+        "  pc2: {role: pc, links: [sw]}\n"
+    )
+    devices = {i.node: i.devices["eth0"] for i in make_plan(topology, "default").instances}
+    assert devices["r1"]["vlan.tagged"] == "10,20" and "vlan" not in devices["r1"]
+    assert devices["pc1"]["vlan"] == "10"
+    assert "vlan" not in devices["pc2"] and "vlan.tagged" not in devices["pc2"]

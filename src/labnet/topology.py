@@ -21,7 +21,7 @@ from __future__ import annotations
 import difflib
 import ipaddress
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +51,7 @@ MAX_COUNT = 200
 _TOP_KEYS = ("name", "networks", "nodes")
 _NETWORK_KEYS = ("uplink", "subnet")
 _NODE_KEYS = ("role", "links", "count", "memory", "cpu", "image")
+_LINK_KEYS = ("network", "vlan", "trunk")
 
 
 class TopologyError(LabnetError):
@@ -92,6 +93,10 @@ class Node:
     memory: str
     cpu: int
     image: str | None = None  # None means "use the role image"
+    # Optional VLAN settings of the switch port each link plugs into, keyed
+    # by network name. A link has at most one of the two.
+    access_vlan: dict[str, int] = field(default_factory=dict)  # untagged member of one VLAN
+    trunk_vlans: dict[str, tuple[int, ...]] = field(default_factory=dict)  # tagged VLANs carried
 
     def interface_for(self, network: str) -> str | None:
         """Return the interface name (eth0, eth1, ...) attached to ``network``."""
@@ -308,7 +313,9 @@ def _parse_nodes(value: Any, networks: dict[str, Network], problems: list[str]) 
         _check_unknown_keys(settings, _NODE_KEYS, where, problems)
 
         role = _parse_role(settings.get("role"), where, problems)
-        links = _parse_links(settings.get("links"), networks, where, problems)
+        links, access_vlan, trunk_vlans = _parse_links(
+            settings.get("links"), networks, where, problems
+        )
         defaults = ROLE_DEFAULTS.get(role or "pc", ROLE_DEFAULTS["pc"])
         memory = _parse_memory(settings.get("memory", defaults["memory"]), where, problems)
         cpu = _parse_cpu(settings.get("cpu", defaults["cpu"]), where, problems)
@@ -327,7 +334,14 @@ def _parse_nodes(value: Any, networks: dict[str, Network], problems: list[str]) 
                 )
                 continue
             nodes[node_name] = Node(
-                name=node_name, role=role, links=links, memory=memory, cpu=cpu, image=image
+                name=node_name,
+                role=role,
+                links=links,
+                memory=memory,
+                cpu=cpu,
+                image=image,
+                access_vlan=access_vlan,
+                trunk_vlans=trunk_vlans,
             )
     return nodes
 
@@ -348,27 +362,91 @@ def _parse_role(value: Any, where: str, problems: list[str]) -> str | None:
 
 def _parse_links(
     value: Any, networks: dict[str, Network], where: str, problems: list[str]
-) -> tuple[str, ...]:
+) -> tuple[tuple[str, ...], dict[str, int], dict[str, tuple[int, ...]]]:
+    """Parse a node's ``links`` list.
+
+    Each item is a network name, or a mapping that also gives the VLAN
+    settings of the switch port: ``{network: sw, vlan: 10}`` for an access
+    port, ``{network: sw, trunk: [10, 20]}`` for a trunk port.
+
+    Returns the network names in order, the access VLAN per network, and the
+    trunk VLANs per network.
+    """
+    access: dict[str, int] = {}
+    trunk: dict[str, tuple[int, ...]] = {}
     if value is None or value == []:
         problems.append(f"{where}: missing 'links'; connect the node to at least one network")
-        return ()
+        return (), access, trunk
     if not isinstance(value, list):
         problems.append(f"{where}: 'links' must be a list, for example 'links: [lan-office]'")
-        return ()
+        return (), access, trunk
+
     links: list[str] = []
-    for link in value:
+    for item in value:
+        port: dict[str, Any] = {}
+        link = item
+        if isinstance(item, dict):
+            _check_unknown_keys(item, _LINK_KEYS, f"{where}: link", problems)
+            link = item.get("network")
+            port = item
+            if link is None:
+                problems.append(
+                    f"{where}: a link written as a mapping needs 'network', "
+                    "for example {network: sw, vlan: 10}"
+                )
+                continue
         if link in links:
             problems.append(f"{where}: is linked to network '{link}' more than once")
-        elif networks and link not in networks:
+            continue
+        if networks and link not in networks:
             close = difflib.get_close_matches(str(link), list(networks), n=1)
             suggestion = f" (did you mean '{close[0]}'?)" if close else ""
             problems.append(
                 f"{where}: link '{link}' is not a defined network{suggestion}; "
                 f"defined networks: {', '.join(networks)}"
             )
+            continue
+        links.append(link)
+        _parse_port_vlans(port, link, networks, access, trunk, where, problems)
+    return tuple(links), access, trunk
+
+
+def _is_vlan_id(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 4094
+
+
+def _parse_port_vlans(
+    port: dict[str, Any],
+    link: str,
+    networks: dict[str, Network],
+    access: dict[str, int],
+    trunk: dict[str, tuple[int, ...]],
+    where: str,
+    problems: list[str],
+) -> None:
+    """Validate the optional ``vlan`` / ``trunk`` settings of one link."""
+    vlan, tagged = port.get("vlan"), port.get("trunk")
+    if vlan is None and tagged is None:
+        return
+    here = f"{where}: link to '{link}'"
+    if vlan is not None and tagged is not None:
+        problems.append(f"{here}: use either 'vlan' (access port) or 'trunk', not both")
+        return
+    if link in networks and networks[link].uplink:
+        problems.append(f"{here}: VLANs are for switches, not for the uplink network")
+        return
+    if vlan is not None:
+        if _is_vlan_id(vlan):
+            access[link] = vlan
         else:
-            links.append(link)
-    return tuple(links)
+            problems.append(f"{here}: vlan '{vlan}' is not valid; use a number from 1 to 4094")
+        return
+    if isinstance(tagged, list) and tagged and all(_is_vlan_id(v) for v in tagged):
+        trunk[link] = tuple(sorted(set(tagged)))
+    else:
+        problems.append(
+            f"{here}: trunk must be a list of VLAN numbers (1 to 4094), for example [10, 20]"
+        )
 
 
 def _parse_memory(value: Any, where: str, problems: list[str]) -> str:

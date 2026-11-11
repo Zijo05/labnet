@@ -102,6 +102,7 @@ def test_labs_are_returned_as_json(client: TestClient) -> None:
         "up": True,
         "addresses": ["10.0.0.1/24"],
         "shaping": "",
+        "vlan": "",
     }
     assert labs[0]["networks"][0]["uplink"] is False
 
