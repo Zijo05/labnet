@@ -1,0 +1,10 @@
+name: firewall
+networks:
+  lan-office: {}
+  lan-guest: {}
+  wan: {uplink: true}
+nodes:
+  r1:     {role: router, links: [lan-office, lan-guest, wan]}
+  srv1:   {role: server, links: [lan-office]}
+  pc1:    {role: pc, links: [lan-office]}
+  guest1: {role: pc, links: [lan-guest]}

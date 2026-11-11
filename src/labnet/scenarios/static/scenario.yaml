@@ -1,0 +1,33 @@
+title: Static addressing
+number: 1
+summary: Two PCs on one switch get addresses by hand and reach each other.
+hints:
+  - >-
+    Open a console with 'labnet shell pc1'. The command 'ip -brief address'
+    shows that eth0 is up but has no IPv4 address.
+  - >-
+    'ip address add 192.168.1.11/24 dev eth0' gives pc1 its address right
+    away. It lasts until the node restarts. Do the same on pc2 with its own
+    address.
+  - >-
+    For a permanent address, create the file
+    /etc/systemd/network/05-static.network with a [Match] section (Name=eth0)
+    and a [Network] section (Address=192.168.1.11/24), then run
+    'networkctl reload'. The name must sort before the existing
+    10-labnet-dhcp.network, because the first matching file wins.
+checks:
+  - name: pc1 has the address 192.168.1.11
+    node: pc1
+    address_in: 192.168.1.11/32
+    explain: Look at 'ip -brief address' on pc1.
+  - name: pc2 has the address 192.168.1.12
+    node: pc2
+    address_in: 192.168.1.12/32
+    explain: Look at 'ip -brief address' on pc2.
+  - name: pc1 can ping pc2
+    node: pc1
+    ping: 192.168.1.12
+    explain: Both PCs need an address in the same network (same first three numbers, /24).
+  - name: pc2 can ping pc1
+    node: pc2
+    ping: 192.168.1.11

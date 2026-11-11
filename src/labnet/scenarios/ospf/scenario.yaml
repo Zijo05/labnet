@@ -1,0 +1,75 @@
+title: Dynamic routing with OSPF
+number: 7
+summary: Three routers learn each other's networks with OSPF and survive a link failure.
+setup:
+  r1: setup/r1.sh
+  r2: setup/r2.sh
+  r3: setup/r3.sh
+  pc1: setup/pc1.sh
+  pc3: setup/pc3.sh
+hints:
+  - >-
+    On each router: edit /etc/frr/daemons and change 'ospfd=no' to
+    'ospfd=yes', then 'systemctl enable --now frr'. 'vtysh' then opens a
+    router command line similar to the one on commercial routers.
+  - >-
+    In vtysh: 'configure terminal', 'router ospf', then one
+    'network <prefix> area 0' line for each network the router is attached
+    to, for example 'network 10.0.12.0/30 area 0'. Finish with 'end' and
+    'write memory' to save it to /etc/frr/frr.conf.
+  - >-
+    'show ip ospf neighbor' should list two neighbours in state 'Full' on
+    every router. If one is missing, the two ends of that link do not both
+    have a matching 'network' statement, or FRR is not running on one side.
+  - >-
+    Do not forget the LANs: r1 must announce 10.0.1.0/24 and r3 must announce
+    10.0.3.0/24, or the routers find each other but the PCs stay unreachable.
+checks:
+  - name: r1 has two OSPF neighbours in state Full
+    node: r1
+    run: vtysh -c 'show ip ospf neighbor'
+    output_matches: 'Full.*Full'
+    wait: 60
+    explain: See 'show ip ospf neighbor' in vtysh on r1. Both r2 and r3 should be listed as Full.
+  - name: r2 has two OSPF neighbours in state Full
+    node: r2
+    run: vtysh -c 'show ip ospf neighbor'
+    output_matches: 'Full.*Full'
+    wait: 60
+  - name: r3 has two OSPF neighbours in state Full
+    node: r3
+    run: vtysh -c 'show ip ospf neighbor'
+    output_matches: 'Full.*Full'
+    wait: 60
+  - name: r1 learned the route to lan3 from OSPF
+    node: r1
+    run: ip route show proto ospf
+    output_contains: 10.0.3.0/24
+    wait: 60
+    explain: r3 must announce its LAN 10.0.3.0/24 in OSPF.
+  - name: r3 learned the route to lan1 from OSPF
+    node: r3
+    run: ip route show proto ospf
+    output_contains: 10.0.1.0/24
+    wait: 60
+    explain: r1 must announce its LAN 10.0.1.0/24 in OSPF.
+  - name: pc1 can ping pc3
+    node: pc1
+    ping: 10.0.3.10
+    wait: 30
+  - name: pc3 can ping pc1
+    node: pc3
+    ping: 10.0.1.10
+    wait: 30
+  - name: FRR starts at boot on r1
+    node: r1
+    run: systemctl is-enabled frr
+    output_contains: enabled
+  - name: FRR starts at boot on r2
+    node: r2
+    run: systemctl is-enabled frr
+    output_contains: enabled
+  - name: FRR starts at boot on r3
+    node: r3
+    run: systemctl is-enabled frr
+    output_contains: enabled

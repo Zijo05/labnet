@@ -1,0 +1,6 @@
+name: static
+networks:
+  lan: {}
+nodes:
+  pc1: {role: pc, links: [lan]}
+  pc2: {role: pc, links: [lan]}

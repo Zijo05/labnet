@@ -1,0 +1,56 @@
+title: DNS for an internal domain
+number: 5
+summary: Run an authoritative DNS server and make clients use it.
+setup:
+  srv1: setup/srv1.sh
+  pc1: setup/pc1.sh
+  pc2: setup/pc2.sh
+hints:
+  - >-
+    With BIND, declare the zone in /etc/bind/named.conf.local:
+    zone "office.internal" { type master; file "/etc/bind/db.office.internal"; };
+    Then write the zone file it points to.
+  - >-
+    A zone file starts with '$TTL 3600' and an SOA record, then an NS record
+    naming the server, then the A and CNAME records. Copy /etc/bind/db.local
+    as a starting point. Names without a trailing dot are relative to the
+    zone, so 'pc1 IN A 192.168.60.11' defines pc1.office.internal.
+  - >-
+    Test the server directly, without involving the client's settings:
+    'dig @192.168.60.2 pc1.office.internal' on any node. Only when that works,
+    move on to the clients.
+  - >-
+    A client learns its DNS server from its network configuration. On pc1
+    add the line 'DNS=192.168.60.2' to the [Network] section of
+    /etc/systemd/network/05-static.network and run 'networkctl reload'.
+    'resolvectl status' shows the result.
+checks:
+  - name: srv1 answers for pc1.office.internal
+    node: srv1
+    run: dig +short +time=2 +tries=1 @192.168.60.2 pc1.office.internal
+    output_contains: 192.168.60.11
+    explain: The DNS server on srv1 must listen on 192.168.60.2 and know the zone office.internal.
+  - name: srv1 answers for the alias www.office.internal
+    node: srv1
+    run: dig +short +time=2 +tries=1 @192.168.60.2 www.office.internal
+    output_contains: 192.168.60.2
+    explain: www should be a CNAME (or an A record) leading to srv1's address.
+  - name: pc1 resolves pc2.office.internal with its own settings
+    node: pc1
+    run: getent hosts pc2.office.internal
+    output_contains: 192.168.60.12
+    wait: 10
+    explain: pc1 must be configured to use 192.168.60.2 as its DNS server. See 'resolvectl status'.
+  - name: pc2 resolves www.office.internal with its own settings
+    node: pc2
+    run: getent hosts www.office.internal
+    output_contains: 192.168.60.2
+    wait: 10
+    explain: pc2 must be configured to use 192.168.60.2 as its DNS server.
+  - name: pc1 can ping pc2 by name
+    node: pc1
+    ping: pc2.office.internal
+  - name: the DNS service starts at boot
+    node: srv1
+    run: systemctl is-enabled named dnsmasq 2>/dev/null | grep -qx enabled
+    explain: Use 'systemctl enable <service>' so the server comes back after a restart.

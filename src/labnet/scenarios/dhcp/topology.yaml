@@ -1,0 +1,7 @@
+name: dhcp
+networks:
+  lan: {}
+nodes:
+  srv1: {role: server, links: [lan]}
+  pc1:  {role: pc, links: [lan]}
+  pc2:  {role: pc, links: [lan]}

@@ -1,0 +1,8 @@
+name: routing
+networks:
+  lan-a: {}
+  lan-b: {}
+nodes:
+  r1:  {role: router, links: [lan-a, lan-b]}
+  pc1: {role: pc, links: [lan-a]}
+  pc2: {role: pc, links: [lan-b]}

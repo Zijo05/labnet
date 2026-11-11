@@ -108,3 +108,42 @@ failed, and what remains. Newest milestone last.
   fix in the tool, but the user guide says how `-c` behaves.
 - pcap output must not pass through a terminal, so file captures run
   `incus exec --force-noninteractive`.
+
+## Milestone 4: scenarios
+
+**Done**
+
+- `scenario.py`: scenario loader and validator, declarative checks
+  (`address_in`, `ping`, `run` with expected output or exit code, optional
+  `expect: fail` and `wait`), per-node setup scripts, hints, reset.
+- CLI: `scenario list | start | task | check | hint | reset`.
+- Eight scenarios, each with task text, three or more hints, and checks:
+  static, routing, dhcp, nat, dns, firewall, ospf, troubleshoot.
+- A written reference solution for each in `docs/solutions/`. Code blocks
+  marked `node=<name>` are the executable steps.
+- Integration test per scenario: start it, confirm the checks fail unsolved,
+  run the solution blocks straight out of the Markdown, confirm every check
+  passes, restart the whole lab, confirm every check still passes.
+- Extra OSPF test: pull the r1-r3 cable, traffic resumes via r2 within 15
+  seconds (tuned hello/dead timers), and returns to the direct path when the
+  cable is plugged back in.
+
+**Result**
+
+All 8 scenario tests, the OSPF reroute test and the hint/reset test pass
+(about 9 minutes in total). The nat, firewall and troubleshoot scenarios need
+the host to be online.
+
+**Tried and failed / surprises**
+
+- `sysctl --system` exits non-zero inside an unprivileged container, because
+  it may not set kernel-wide keys such as `kernel.sysrq`. With `sh -e` that
+  aborted the troubleshooting scenario's setup script. The script and the
+  written solution now set the one key directly with `sysctl -w`; the check
+  that re-applies all files ignores the exit code.
+- dnsmasq's default is to bind port 53 on every address, which collides with
+  systemd-resolved on 127.0.0.53. All dnsmasq configurations in the project
+  use `bind-dynamic`.
+- Reset is "delete and rebuild", not "restore a snapshot". With the `dir`
+  storage backend a snapshot is a full copy, so snapshotting every scenario
+  at start would cost more than rebuilding on the rare reset.

@@ -10,7 +10,7 @@ import argparse
 import subprocess
 import sys
 
-from labnet import __version__, ansible_export, engine, hostcheck, images
+from labnet import __version__, ansible_export, engine, hostcheck, images, scenario
 from labnet.errors import LabnetError
 from labnet.topology import ROLES, load_topology
 
@@ -266,6 +266,105 @@ def _run_until_interrupt(argv: list[str], stdout: object = None) -> int:
         return 0
 
 
+def cmd_scenario(args: argparse.Namespace) -> int:
+    handlers = {
+        "list": _scenario_list,
+        "start": _scenario_start,
+        "task": _scenario_task,
+        "check": _scenario_check,
+        "hint": _scenario_hint,
+        "reset": _scenario_reset,
+    }
+    return handlers[args.action](args)
+
+
+def _scenario_list(_args: argparse.Namespace) -> int:
+    running = set(scenario.active_scenarios().values())
+    rows = [
+        [str(item.number), item.name, item.title, "running" if item.reference in running else ""]
+        for item in scenario.list_scenarios()
+    ]
+    _say(_table(["#", "NAME", "TITLE", "STATUS"], rows, indent=""))
+    _say()
+    _say("Start one with: labnet scenario start <name>")
+    return 0
+
+
+def _scenario_footer() -> None:
+    _say("When you think you are done:  labnet scenario check")
+    _say("If you are stuck:             labnet scenario hint")
+    _say("To start over:                labnet scenario reset")
+
+
+def _scenario_start(args: argparse.Namespace) -> int:
+    _say(f"Starting scenario '{args.name}'")
+    item = scenario.start(args.name, report=_say)
+    _say(f"Scenario '{item.name}' is ready in lab '{item.lab}'.")
+    _say()
+    _say(item.task.rstrip())
+    _say()
+    _scenario_footer()
+    return 0
+
+
+def _scenario_task(args: argparse.Namespace) -> int:
+    item = scenario.find_active(args.scenario)
+    _say(item.task.rstrip())
+    _say()
+    _scenario_footer()
+    return 0
+
+
+def _scenario_check(args: argparse.Namespace) -> int:
+    item = scenario.find_active(args.scenario)
+    _say(f"Checking scenario '{item.name}' ({len(item.checks)} checks)")
+
+    def show(result: scenario.CheckResult) -> None:
+        label = _colour("PASS", "32") if result.passed else _colour("FAIL", "31")
+        _say(f"  {label}  {result.check.name}")
+        if not result.passed:
+            _say(f"        Found: {result.detail}")
+            if result.check.explain:
+                _say(f"        {result.check.explain}")
+
+    results = scenario.run_checks(item, patient=not args.no_wait, report=show)
+    passed = sum(1 for result in results if result.passed)
+    _say()
+    if passed == len(results):
+        _say(f"All {passed} checks passed. Scenario '{item.name}' is solved.")
+        _say(f"Remove the lab when you are finished: labnet down {item.lab}")
+        return 0
+    _say(f"{passed} of {len(results)} checks passed. Keep going, or try: labnet scenario hint")
+    return 1
+
+
+def _scenario_hint(args: argparse.Namespace) -> int:
+    item = scenario.find_active(args.scenario)
+    if not item.hints:
+        _say(f"Scenario '{item.name}' has no hints.")
+        return 0
+    if not 1 <= args.number <= len(item.hints):
+        raise LabnetError(
+            f"Scenario '{item.name}' has hints 1 to {len(item.hints)}.",
+            hint="Run 'labnet scenario hint' for the first one.",
+        )
+    _say(f"Hint {args.number} of {len(item.hints)}: {item.hints[args.number - 1]}")
+    if args.number < len(item.hints):
+        _say(f"Next hint: labnet scenario hint {args.number + 1}")
+    return 0
+
+
+def _scenario_reset(args: argparse.Namespace) -> int:
+    item = scenario.find_active(args.scenario)
+    question = f"Reset scenario '{item.name}'? Everything you configured in it is lost."
+    if not _confirm(question, args.yes):
+        _say("Nothing was changed.")
+        return 0
+    scenario.reset(args.scenario, report=_say)
+    _say(f"Scenario '{item.name}' is back at its starting point.")
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     lab = engine.get_lab(args.lab)
     text = ansible_export.inventory_text(lab)
@@ -378,6 +477,30 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_argument("-w", "--file", help="write a pcap file instead of printing packets")
     sub.add_argument("-c", "--count", type=int, help="stop after this many packets")
     sub.add_argument("filter", nargs="*", help="tcpdump filter, e.g. icmp or 'port 53'")
+
+    sub = add("scenario", cmd_scenario, "guided exercises with automatic checking")
+    actions = sub.add_subparsers(dest="action", metavar="<action>", required=True)
+    actions.add_parser("list", help="show the available scenarios")
+    action = actions.add_parser("start", help="build a scenario's lab and show the task")
+    action.add_argument("name", help="scenario name, or the path of a scenario directory")
+    for name, help_text in (
+        ("task", "show the task again"),
+        ("check", "test whether the task is solved"),
+        ("hint", "show a hint"),
+        ("reset", "rebuild the scenario's lab from scratch"),
+    ):
+        action = actions.add_parser(name, help=help_text)
+        action.add_argument("--scenario", help="which scenario, if several are running")
+        if name == "check":
+            action.add_argument(
+                "--no-wait",
+                action="store_true",
+                help="do not retry checks that normally wait (for leases, routing, ...)",
+            )
+        if name == "hint":
+            action.add_argument("number", nargs="?", type=int, default=1, help="hint number")
+        if name == "reset":
+            add_yes(action)
 
     sub = add("export", cmd_export, "write an Ansible inventory for a lab")
     sub.add_argument("format", choices=["ansible"])

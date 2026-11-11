@@ -1,0 +1,13 @@
+name: ospf
+networks:
+  lan1: {}
+  lan3: {}
+  net12: {}
+  net23: {}
+  net13: {}
+nodes:
+  r1:  {role: router, links: [lan1, net12, net13]}
+  r2:  {role: router, links: [net12, net23]}
+  r3:  {role: router, links: [lan3, net23, net13]}
+  pc1: {role: pc, links: [lan1]}
+  pc3: {role: pc, links: [lan3]}

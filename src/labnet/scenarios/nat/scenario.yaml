@@ -1,0 +1,57 @@
+title: NAT to the internet
+number: 4
+summary: Connect a router to the provider and masquerade the LAN behind it.
+setup:
+  r1: setup/r1.sh
+  pc1: setup/pc1.sh
+  pc2: setup/pc2.sh
+hints:
+  - >-
+    For a quick test run a DHCP client by hand on r1: 'dhclient -v eth1'.
+    The permanent way is a file /etc/systemd/network/20-wan.network with
+    [Match] Name=eth1 and [Network] DHCP=ipv4, then 'networkctl reload'.
+  - >-
+    NAT rules live in a table with a chain hooked into 'postrouting':
+    nft add table ip nat;
+    nft 'add chain ip nat postrouting { type nat hook postrouting priority srcnat; }';
+    nft add rule ip nat postrouting oifname "eth1" masquerade
+  - >-
+    Rules added with the nft command are lost at reboot. Put them in
+    /etc/nftables.conf (start the file with 'flush ruleset') and run
+    'systemctl enable --now nftables', which loads that file at every boot.
+  - >-
+    Still no internet from the PCs? Check each step from pc1: ping
+    192.168.10.1 (the router), then 1.1.1.1. Run 'labnet capture r1 wan icmp'
+    to see whether packets leave r1 and which source address they carry.
+checks:
+  - name: r1 has an address on its WAN interface (eth1)
+    node: r1
+    run: ip -4 -o addr show dev eth1 scope global
+    output_contains: 'inet '
+    wait: 20
+    explain: eth1 must get an address from the provider's DHCP server.
+  - name: r1 itself can reach the internet
+    node: r1
+    ping: 1.1.1.1
+    explain: Check 'ip route' on r1; DHCP should have given it a default route.
+  - name: r1 has a source NAT rule
+    node: r1
+    run: nft list ruleset
+    output_matches: 'masquerade|snat'
+    explain: Without NAT the PCs' private addresses leave the router unchanged and replies never return.
+  - name: pc1 can reach the internet
+    node: pc1
+    ping: 1.1.1.1
+  - name: pc2 can reach the internet
+    node: pc2
+    ping: 1.1.1.1
+  - name: pc1 can resolve names
+    node: pc1
+    run: getent hosts deb.debian.org
+    wait: 10
+    explain: Name resolution uses the DNS server 1.1.1.1, so it works as soon as NAT does.
+  - name: the NAT rules are loaded at boot
+    node: r1
+    run: systemctl is-enabled nftables
+    output_contains: enabled
+    explain: Save the rules in /etc/nftables.conf and enable the nftables service.

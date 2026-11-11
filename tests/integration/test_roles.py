@@ -53,7 +53,7 @@ printf '[Match]\nName=eth0\n[Network]\nAddress=192.168.10.2/24\nGateway=192.168.
 networkctl reload
 cat > /etc/dnsmasq.d/lab.conf <<'EOF'
 interface=eth0
-bind-interfaces
+bind-dynamic
 port=0
 dhcp-range=192.168.10.100,192.168.10.150,1h
 dhcp-option=option:router,192.168.10.1

@@ -1,0 +1,75 @@
+title: "Troubleshooting: a broken office network"
+number: 8
+summary: A network that used to work has several faults. Find and fix them all.
+setup:
+  r1: setup/r1.sh
+  srv1: setup/srv1.sh
+  pc2: setup/pc2.sh
+hints:
+  - >-
+    Start on pc2 with 'ip -brief address'. Compare its address with the
+    network described in the task, then look in /etc/systemd/network/ for
+    the reason.
+  - >-
+    On pc1, 'ip route' shows the default gateway that DHCP handed out. Is
+    that address really the router? The options a DHCP server gives out are
+    in its configuration, under /etc/dnsmasq.d/ on srv1.
+  - >-
+    A router that does not forward: 'sysctl net.ipv4.ip_forward' on r1.
+    If it is 0, something sets it at boot. Search with
+    'grep -r ip_forward /etc/sysctl.d/ /etc/sysctl.conf'. The file with the
+    highest number wins.
+  - >-
+    When r1 forwards but pc1 still cannot ping 1.1.1.1, capture on the WAN
+    side: 'labnet capture r1 wan icmp'. If the source address is still
+    192.168.10.x, NAT is not being applied. Read 'nft list ruleset' on r1
+    carefully: on which interface does the masquerade rule match?
+  - >-
+    Pinging 1.1.1.1 works but names do not resolve? Ask the office DNS
+    server directly: 'dig @192.168.10.2 debian.org'. It forwards questions
+    to an upstream server set in its configuration. Is that server real?
+checks:
+  - name: pc1 has an address in the office network
+    node: pc1
+    address_in: 192.168.10.0/24
+    wait: 40
+  - name: pc2 has an address in the office network
+    node: pc2
+    address_in: 192.168.10.0/24
+    wait: 40
+    explain: Compare 'ip -brief address' on pc2 with the network in the task description.
+  - name: pc1 uses 192.168.10.1 as its default gateway
+    node: pc1
+    run: ip route show default
+    output_matches: 'via 192\.168\.10\.1 '
+    wait: 20
+    explain: >-
+      Look at 'ip route' on pc1. Clients keep an old lease after the server
+      is fixed; 'networkctl reconfigure eth0' requests a new one.
+  - name: pc2 can ping the router
+    node: pc2
+    ping: 192.168.10.1
+  - name: r1 forwards packets, and will after a reboot too
+    node: r1
+    run: sysctl --system >/dev/null 2>&1; sysctl -n net.ipv4.ip_forward
+    output_matches: '^1$'
+    explain: >-
+      This check re-applies the sysctl files as a boot would. If forwarding
+      is only switched on with 'sysctl -w', the file that turns it off wins again.
+  - name: pc1 can reach the internet
+    node: pc1
+    ping: 1.1.1.1
+    wait: 10
+  - name: pc2 can reach the internet
+    node: pc2
+    ping: 1.1.1.1
+    wait: 10
+  - name: pc1 can resolve names
+    node: pc1
+    run: getent hosts deb.debian.org
+    wait: 10
+    explain: If addresses work and names do not, follow the DNS path, pc1 to srv1 to its upstream server.
+  - name: pc2 can resolve names
+    node: pc2
+    run: getent hosts deb.debian.org
+    wait: 10

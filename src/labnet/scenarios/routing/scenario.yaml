@@ -1,0 +1,47 @@
+title: Routing between two networks
+number: 2
+summary: One router joins two LANs; hosts need addresses and a default gateway.
+hints:
+  - >-
+    Start with the router. 'labnet shell r1', then give eth0 and eth1 their
+    addresses, for example 'ip address add 10.1.1.1/24 dev eth0'.
+  - >-
+    A PC needs an address and a default route:
+    'ip address add 10.1.1.10/24 dev eth0' and
+    'ip route add default via 10.1.1.1'. Check with 'ip route'.
+  - >-
+    If pc1 can ping 10.1.1.1 and 10.1.2.1 but not pc2, the problem is on
+    pc2: without a default gateway it cannot send the reply back.
+  - >-
+    To make it permanent, write a file such as
+    /etc/systemd/network/05-static.network with Address= and Gateway= in the
+    [Network] section and run 'networkctl reload'.
+checks:
+  - name: r1 has 10.1.1.1 on lan-a
+    node: r1
+    address_in: 10.1.1.1/32
+  - name: r1 has 10.1.2.1 on lan-b
+    node: r1
+    address_in: 10.1.2.1/32
+  - name: pc1 has the address 10.1.1.10
+    node: pc1
+    address_in: 10.1.1.10/32
+  - name: pc2 has the address 10.1.2.10
+    node: pc2
+    address_in: 10.1.2.10/32
+  - name: pc1 uses r1 as its default gateway
+    node: pc1
+    run: ip route show default
+    output_contains: via 10.1.1.1
+    explain: Without a default route pc1 has nowhere to send packets for other networks.
+  - name: pc2 uses r1 as its default gateway
+    node: pc2
+    run: ip route show default
+    output_contains: via 10.1.2.1
+    explain: Without a default route pc2 cannot answer hosts in other networks.
+  - name: pc1 can ping pc2 through the router
+    node: pc1
+    ping: 10.1.2.10
+  - name: pc2 can ping pc1 through the router
+    node: pc2
+    ping: 10.1.1.10

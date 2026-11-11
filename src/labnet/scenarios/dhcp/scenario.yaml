@@ -1,0 +1,47 @@
+title: DHCP server
+number: 3
+summary: Configure a DHCP server so that clients get their addresses automatically.
+hints:
+  - >-
+    The server itself needs a fixed address first. On srv1:
+    'ip address add 192.168.50.2/24 dev eth0', or better a file in
+    /etc/systemd/network/ so it survives a reboot.
+  - >-
+    The simplest server is dnsmasq. A file /etc/dnsmasq.d/lab.conf with the
+    lines 'interface=eth0', 'bind-dynamic', 'port=0' and
+    'dhcp-range=192.168.50.100,192.168.50.150,12h' is enough. Then
+    'systemctl enable --now dnsmasq'.
+  - >-
+    With Kea, edit /etc/kea/kea-dhcp4.conf: list eth0 under
+    "interfaces-config" and define a "subnet4" entry with "subnet" and a
+    "pools" range. Check the file with 'kea-dhcp4 -t /etc/kea/kea-dhcp4.conf'
+    and start it with 'systemctl enable --now kea-dhcp4-server'.
+  - >-
+    No lease yet? On the PC run 'networkctl reconfigure eth0' to make it ask
+    again, and watch 'labnet capture srv1 lan port 67 or port 68' in a second
+    terminal. If you see requests but no replies, read the server's log.
+checks:
+  - name: srv1 has the static address 192.168.50.2
+    node: srv1
+    address_in: 192.168.50.2/32
+  - name: pc1 received an address from the pool by DHCP
+    node: pc1
+    run: ip -4 -o addr show dev eth0 scope global
+    output_matches: 'inet 192\.168\.50\.1([0-4][0-9]|50)/24 .*dynamic'
+    wait: 60
+    explain: >-
+      pc1 should show an address between 192.168.50.100 and .150 marked
+      'dynamic'. Run 'networkctl reconfigure eth0' on pc1 to make it ask again.
+  - name: pc2 received an address from the pool by DHCP
+    node: pc2
+    run: ip -4 -o addr show dev eth0 scope global
+    output_matches: 'inet 192\.168\.50\.1([0-4][0-9]|50)/24 .*dynamic'
+    wait: 60
+    explain: Run 'networkctl reconfigure eth0' on pc2 to make it ask again.
+  - name: pc1 can ping the server
+    node: pc1
+    ping: 192.168.50.2
+  - name: the DHCP service starts at boot
+    node: srv1
+    run: systemctl is-enabled kea-dhcp4-server dnsmasq 2>/dev/null | grep -qx enabled
+    explain: Use 'systemctl enable <service>' so the server comes back after a restart.

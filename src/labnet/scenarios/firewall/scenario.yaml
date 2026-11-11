@@ -1,0 +1,59 @@
+title: Firewall for a guest network
+number: 6
+summary: Guests get internet access but are kept out of the office LAN.
+setup:
+  r1: setup/r1.sh
+  srv1: setup/srv1.sh
+  pc1: setup/pc1.sh
+  guest1: setup/guest1.sh
+hints:
+  - >-
+    Add a new table next to the NAT table in /etc/nftables.conf:
+    table inet filter { chain forward { type filter hook forward priority filter; policy drop; } }
+    With only that, nothing is forwarded any more. Now add 'accept' rules.
+  - >-
+    First rule in the chain: 'ct state established,related accept'. It lets
+    replies through in both directions, so the remaining rules only need to
+    describe who may START a connection.
+  - >-
+    Rules can match the interface a packet came in on and the one it leaves
+    by: 'iifname "eth0" accept' lets the office go anywhere, and
+    'iifname "eth1" oifname "eth2" accept' lets guests go to the internet only.
+  - >-
+    Load the file with 'nft -f /etc/nftables.conf' and look at the result
+    with 'nft list ruleset'. A syntax error is reported with its line number
+    and leaves the old rules in place.
+checks:
+  - name: guest1 can reach the internet
+    node: guest1
+    ping: 1.1.1.1
+    explain: Guests still need internet access; check the rule for traffic from eth1 to eth2.
+  - name: guest1 cannot ping the office PC
+    node: guest1
+    ping: 192.168.10.11
+    expect: fail
+    explain: Traffic from the guest network to 192.168.10.0/24 must be dropped on r1.
+  - name: guest1 cannot open the office web server
+    node: guest1
+    run: curl -s -m 3 -o /dev/null http://192.168.10.5
+    expect: fail
+    explain: Blocking ping alone is not enough; TCP connections must be blocked too.
+  - name: pc1 can reach the internet
+    node: pc1
+    ping: 1.1.1.1
+  - name: pc1 can open the office web server
+    node: pc1
+    run: curl -s -m 3 -o /dev/null -w '%{http_code}' http://192.168.10.5
+    output_contains: '200'
+  - name: pc1 can ping guest1 (replies are allowed back)
+    node: pc1
+    ping: 192.168.20.11
+    explain: >-
+      The office may start connections to guests. This works only if the
+      firewall accepts established and related traffic before dropping
+      guest-to-office packets.
+  - name: the rules are saved and loaded at boot
+    node: r1
+    run: grep -q 'hook forward' /etc/nftables.conf && nft -c -f /etc/nftables.conf && systemctl is-enabled nftables
+    output_contains: enabled
+    explain: The filter rules belong in /etc/nftables.conf, which the nftables service loads at boot.
