@@ -254,11 +254,13 @@ the host to be online.
 
 ## What remains / ideas for next steps
 
-- Publish: create the GitHub repository, replace `<repository-url>` in
-  `README.md` and `docs/install.md`, push the `main` branch and the `v0.1.0`
-  tag. Put the owner's full name in `LICENSE`.
-- Run the installer and the integration tests on a clean Ubuntu 24.04 and on
-  native Linux, and update the table in `docs/install.md`.
+- Published to GitHub as `Zijo05/labnet` (private at first) with the
+  `v0.1.0` tag. Still to do by the owner: put a full name in `LICENSE`.
+- Run `./install.sh` on a fresh Debian 13 WSL distro, which is the owner's
+  setup, to cover the apt, `incus admin init` and group steps that were
+  already done on the development distro.
+- Ubuntu and native Linux remain documented as "expected to work"; the owner
+  uses Debian, so testing them is optional.
 - A ninth scenario for VLANs (the lab and test exist; it needs a task, hints
   and a solution).
 - A GIF of the web UI for the README.

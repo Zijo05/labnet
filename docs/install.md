@@ -78,7 +78,7 @@ Inside Linux (the WSL distro, on Windows):
 
 ```bash
 sudo apt update && sudo apt install -y git
-git clone <repository-url> labnet
+git clone https://github.com/Zijo05/labnet.git
 cd labnet
 ./install.sh
 ```

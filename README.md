@@ -19,7 +19,7 @@ find out why.
 On Debian or Ubuntu (on Windows: inside WSL2, see [docs/install.md](docs/install.md)):
 
 ```bash
-git clone <repository-url> labnet && cd labnet
+git clone https://github.com/Zijo05/labnet.git && cd labnet
 ./install.sh                         # installs Incus if needed, then labnet
 labnet up examples/office.yaml       # build a lab (the first run takes ~2 minutes)
 labnet web                           # open http://localhost:8080
