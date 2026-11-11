@@ -393,9 +393,11 @@ nodes. For that reason:
 - It refuses requests that do not come from its own page, so another website
   open in your browser cannot use it behind your back.
 
-`labnet web --host <address>` makes it reachable from the network. Do not do
-that on a network you do not fully control: anyone who can reach the address
-gets root on every lab node. labnet prints a warning and asks you to confirm.
+`labnet web --host <address>` makes it reachable from the network, where
+`<address>` is one specific address of this machine (`0.0.0.0` is refused).
+Do not do that on a network you do not fully control: anyone who can reach
+the address gets root on every lab node. labnet prints a warning and asks
+you to confirm. This mode was not tested from a second machine.
 
 ## Using Ansible
 

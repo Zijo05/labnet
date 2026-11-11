@@ -165,7 +165,7 @@ labnet install-check
 ```bash
 ./dev.sh setup          # virtualenv in ~/.venvs/labnet-dev, editable install
 ./dev.sh test           # unit tests, no Incus needed (about 3 seconds)
-./dev.sh integration    # integration tests, real containers (about 20 minutes)
+./dev.sh integration    # integration tests, real containers (about 13 minutes)
 ./dev.sh lint           # ruff format check and linter
 ```
 

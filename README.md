@@ -162,9 +162,10 @@ The full list is in [docs/limitations.md](docs/limitations.md).
 ./dev.sh lint           # ruff
 ```
 
-The unit tests cover parsing, validation, planning, check evaluation and the
-web backend without touching Incus. The integration tests build real labs
-and exercise every command and every scenario.
+The 67 unit tests cover parsing, validation, planning, check evaluation and
+the web backend without touching Incus (about 3 seconds). The 26 integration
+tests build real labs and exercise every command and every scenario (about
+13 minutes).
 
 ## License
 

@@ -376,6 +376,14 @@ def cmd_web(args: argparse.Namespace) -> int:
         ) from None
 
     local = args.host in ("127.0.0.1", "localhost", "::1")
+    if args.host in ("0.0.0.0", "::", ""):
+        # The server only answers requests addressed to a host name it knows
+        # (protection against DNS rebinding), so "every address" cannot work.
+        raise LabnetError(
+            f"'{args.host}' means every network address, which the web UI does not accept.",
+            hint="Leave --host out to use it from this computer. To expose it on purpose, "
+            "give the one address to listen on, for example --host 192.168.1.20.",
+        )
     if not local:
         _say(_colour("WARNING: the web UI gives root consoles on every lab node.", "31"))
         _say(f"You are making it reachable from other machines through {args.host}.")

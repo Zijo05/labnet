@@ -267,3 +267,17 @@ the host to be online.
 - A true carrier-loss cable pull (needs a root helper on the host).
 - Ideas beyond that: IPv6 scenarios, a BGP scenario, bandwidth limits on
   links, the visual topology editor.
+
+## Final state (v0.1.0)
+
+- 67 unit tests pass in about 3 seconds (Debian 13 / Python 3.13 and
+  Ubuntu 26.04 / Python 3.14).
+- 26 integration tests pass in 13 minutes on Debian 13 under WSL2 with
+  Incus 6.0.4: core commands, roles and uplink, snapshots, links, capture,
+  Ansible, all eight scenarios with their written solutions (before and
+  after a lab restart), OSPF rerouting, the web backend, VLANs.
+- `ruff format --check` and `ruff check` are clean.
+- Last change before the tag: `labnet web --host 0.0.0.0` is refused with an
+  explanation, because the request check needs one specific host address.
+- The prototype lab was never touched: `pc01`..`pc20` are still present and
+  stopped, with network `ured` and profile `lab`.
