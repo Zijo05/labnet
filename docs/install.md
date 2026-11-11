@@ -123,10 +123,13 @@ cd labnet
 ./install.sh
 ```
 
-> What was tested: on the development machine Incus was already installed and
-> initialised, so steps 1 to 3 were skipped there. Steps 4 and 5 were run
-> for real. The apt and group steps are standard commands but were not
-> exercised on a blank system.
+> What was tested: the one-line install was run on a brand-new Debian 13
+> system (a fresh container with only a sudo user and `wget`): all five steps
+> ran, in about 100 seconds, and a second run skipped everything already done.
+> After logging in again, `labnet up single-lan` built the node image and a
+> working three-PC lab. On the development machine (Debian 13 under WSL2),
+> where Incus was already set up, steps 1 to 3 were skipped and steps 4 and 5
+> ran. Not tested: Ubuntu, Debian 12, and a fresh WSL distro.
 
 ### Checking the installation
 

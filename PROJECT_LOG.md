@@ -283,3 +283,36 @@ the host to be online.
   explanation, because the request check needs one specific host address.
 - The prototype lab was never touched: `pc01`..`pc20` are still present and
   stopped, with network `ured` and profile `lab`.
+
+## After 0.1.0: one-line install from GitHub
+
+**Done**
+
+- `install.sh` works when piped from GitHub
+  (`wget -qO- https://raw.githubusercontent.com/Zijo05/labnet/main/install.sh | bash`)
+  as well as from a clone. Outside a clone it installs the GitHub archive of
+  `LABNET_REF` (default `main`) with pipx, so `git` is not needed. `wget` is
+  used in the docs because a stock Debian WSL distro has it but not `curl`.
+- The example topologies moved into the package: `labnet up office` works
+  without a clone, and `labnet examples` lists or prints them.
+
+**Verified**
+
+- On a brand-new Debian 13 container (nesting enabled, only a sudo user and
+  wget): the one-liner installed Incus, pipx and python3-venv, initialised
+  Incus, added the user to `incus-admin`, installed labnet from GitHub and
+  passed `install-check` (97 s). A second run skipped everything. After a new
+  login, `labnet up single-lan` built the PC image and a three-PC lab (73 s)
+  whose nodes pinged each other.
+
+**Tried and failed / surprises**
+
+- The first fresh-system run stopped with "Incus is not available" on Debian
+  13, where it is. `apt-cache policy incus | grep -q ...` under
+  `set -o pipefail`: grep exits at the first match, apt-cache gets SIGPIPE,
+  the pipeline counts as failed. The script now has no `| grep -q` pipelines.
+- Building a lab inside the test container first failed: Incus inside a
+  container wanted a user-ID range (1e9 IDs starting at 1,000,000) larger
+  than the container has. Shrinking the inner range in `/etc/subuid` fixed
+  it. This only affects Incus-inside-a-container test setups, not real
+  machines or WSL.
